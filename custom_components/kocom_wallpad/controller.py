@@ -552,7 +552,7 @@ class KocomController:
         # 밸브는 동작이 느릴 수 있으니 기본 타임아웃 상향
         base_timeout = max(CMD_CONFIRM_TIMEOUT, 1.5)
         if action == "turn_on":
-            return True, base_timeout
+            return self._match_key_and(key, lambda d: bool(d.state) is True), base_timeout
         if action == "turn_off":
             return self._match_key_and(key, lambda d: bool(d.state) is False), base_timeout
         return self._match_key_and(key, lambda _d: False), base_timeout

@@ -62,35 +62,43 @@ class KocomFan(KocomBaseEntity, FanEntity):
             FanEntityFeature.TURN_OFF |
             FanEntityFeature.TURN_ON
         )
-        if device.attribute["feature_preset"]:
+        if device.attribute.get("feature_preset", False):
             self._attr_supported_features |= FanEntityFeature.PRESET_MODE
 
     @property
     def is_on(self) -> bool:
-        return self._device.state["state"]
-    
+        return self._device.state.get("state", False)
+
     @property
     def speed_count(self) -> int:
-        return len(self._device.attribute["speed_list"])
+        speed_list = self._device.attribute.get("speed_list", [])
+        return len(speed_list)
 
     @property
     def percentage(self) -> int:
-        if not self._device.state["state"] or self._device.state["speed"] == 0:
+        state = self._device.state.get("state", False)
+        speed = self._device.state.get("speed", 0)
+        if not state or speed == 0:
             return 0
-        return ordered_list_item_to_percentage(self._device.attribute["speed_list"], self._device.state["speed"])
-    
+        speed_list = self._device.attribute.get("speed_list", [])
+        if not speed_list:
+            return 0
+        return ordered_list_item_to_percentage(speed_list, speed)
+
     @property
-    def preset_mode(self) -> str:
-        return self._device.state["preset_mode"]
-    
+    def preset_mode(self) -> str | None:
+        return self._device.state.get("preset_mode")
+
     @property
     def preset_modes(self) -> List[str]:
-        return self._device.attribute["preset_modes"]
+        return self._device.attribute.get("preset_modes", [])
 
     async def async_set_percentage(self, percentage: int) -> None:
         args = {"speed": 0}
         if percentage > 0:
-            args["speed"] = percentage_to_ordered_list_item(self._device.attribute["speed_list"], percentage)
+            speed_list = self._device.attribute.get("speed_list", [])
+            if speed_list:
+                args["speed"] = percentage_to_ordered_list_item(speed_list, percentage)
         await self.gateway.async_send_action(self._device.key, "set_percentage", **args)
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
