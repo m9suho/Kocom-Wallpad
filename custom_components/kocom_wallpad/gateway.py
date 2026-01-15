@@ -27,12 +27,17 @@ from .transport import AsyncConnection
 from .controller import KocomController
 
 
+def _create_future() -> asyncio.Future:
+    """Create a future in the current event loop."""
+    return asyncio.get_running_loop().create_future()
+
+
 @dataclass(slots=True)
 class _CmdItem:
     key: DeviceKey
     action: str
     kwargs: dict
-    future: asyncio.Future = field(default_factory=asyncio.get_running_loop().create_future)
+    future: asyncio.Future = field(default_factory=_create_future)
 
 
 class _PendingWaiter:
@@ -148,6 +153,23 @@ class KocomGateway:
             self._task_sender.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task_sender
+
+        # Clean up pending waiters
+        for waiter in self._pendings:
+            if not waiter.future.done():
+                waiter.future.cancel()
+        self._pendings.clear()
+
+        # Clean up command queue
+        while not self._tx_queue.empty():
+            try:
+                item = self._tx_queue.get_nowait()
+                if item and not item.future.done():
+                    item.future.set_result(False)
+                self._tx_queue.task_done()
+            except asyncio.QueueEmpty:
+                break
+
         await self.conn.close()
 
     def is_idle(self) -> bool:

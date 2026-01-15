@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STOP
@@ -33,5 +35,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         gateway: KocomGateway = hass.data[DOMAIN].pop(entry.entry_id)
-        await gateway.async_stop()
+        try:
+            await gateway.async_stop()
+        except Exception as err:
+            logging.getLogger(__name__).exception("Error stopping gateway: %s", err)
+            return False
     return unload_ok

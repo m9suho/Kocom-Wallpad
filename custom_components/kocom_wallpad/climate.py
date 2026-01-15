@@ -75,39 +75,39 @@ class KocomClimate(KocomBaseEntity, ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
-        return self._device.state["hvac_mode"]
-    
+        return self._device.state.get("hvac_mode", HVACMode.OFF)
+
     @property
     def hvac_modes(self) -> List[HVACMode]:
-        return self._device.attribute["hvac_modes"]
-    
+        return self._device.attribute.get("hvac_modes", [])
+
     @property
-    def fan_mode(self) -> str:
-        return self._device.state["fan_mode"]
-    
+    def fan_mode(self) -> str | None:
+        return self._device.state.get("fan_mode")
+
     @property
     def fan_modes(self) -> List[str]:
-        return self._device.attribute["fan_modes"]
+        return self._device.attribute.get("fan_modes", [])
 
     @property
-    def preset_mode(self) -> str:
-        return self._device.state["preset_mode"]
-    
+    def preset_mode(self) -> str | None:
+        return self._device.state.get("preset_mode")
+
     @property
     def preset_modes(self) -> List[str]:
-        return self._device.attribute["preset_modes"]
+        return self._device.attribute.get("preset_modes", [])
 
     @property
-    def current_temperature(self) -> float:
-        return self._device.state["current_temp"]
+    def current_temperature(self) -> float | None:
+        return self._device.state.get("current_temp")
 
     @property
-    def target_temperature(self) -> float:
-        return self._device.state["target_temp"]
-    
+    def target_temperature(self) -> float | None:
+        return self._device.state.get("target_temp")
+
     @property
     def target_temperature_step(self) -> float:
-        return self._device.attribute["temp_step"]
+        return self._device.attribute.get("temp_step", 1.0)
     
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         args = {"hvac_mode": hvac_mode}

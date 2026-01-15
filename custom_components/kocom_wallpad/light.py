@@ -20,9 +20,9 @@ from .const import DOMAIN, LOGGER
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry, 
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback
-) -> bool:
+) -> None:
     """Set up Kocom light platform."""
     gateway: KocomGateway = hass.data[DOMAIN][entry.entry_id]
 
