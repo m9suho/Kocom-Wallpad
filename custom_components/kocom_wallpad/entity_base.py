@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.restore_state import RestoreEntity, RestoredExtraData
 from homeassistant.core import callback
@@ -35,7 +37,7 @@ class KocomBaseEntity(RestoreEntity):
         super().__init__()
         self.gateway = gateway
         self._device = device
-        self._unsubs: list[callable] = []
+        self._unsubs: list[Callable] = []
 
         self._attr_unique_id = f"{device.key.unique_id}:{self.gateway.host}"
         self.entity_description = ENTITY_DESCRIPTION_MAP[self._device.platform](
@@ -45,7 +47,6 @@ class KocomBaseEntity(RestoreEntity):
             translation_placeholders={"id": self.format_translation_placeholders}
         )
         self._attr_device_info = DeviceInfo(
-            connections={(self.gateway.host, self.unique_id)},
             identifiers={(DOMAIN, f"{self.format_identifiers}")},
             manufacturer="KOCOM Co., Ltd",
             model="Smart Wallpad",

@@ -26,7 +26,7 @@ class AsyncConnection:
         self._writer: Optional[asyncio.StreamWriter] = None
         self._last_activity_mono: float = time.monotonic()
         self._last_reconn_delay: float = 0.0
-        self._connected = True
+        self._connected = False
 
     async def open(self) -> None:
         try:
@@ -60,7 +60,8 @@ class AsyncConnection:
         self._reader = None
         self._connected = False
 
-    def _is_connected(self) -> bool:
+    @property
+    def is_connected(self) -> bool:
         return self._connected
 
     def _touch(self) -> None:
@@ -115,6 +116,6 @@ class AsyncConnection:
         self._last_reconn_delay = min(delay * 2, delay_max)
         await self.open()
 
-        if self._is_connected():
+        if self.is_connected:
             LOGGER.info("Connection reconnected")
             self._last_reconn_delay = delay_min

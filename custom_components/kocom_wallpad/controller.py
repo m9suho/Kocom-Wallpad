@@ -227,7 +227,7 @@ class KocomController:
                 device_index=0,
                 sub_type=SubType.NONE,
             )
-            havc_mode = HVACMode.HEAT if frame.payload[0] >> 4 == 0x01 else HVACMode.OFF
+            hvac_mode = HVACMode.HEAT if frame.payload[0] >> 4 == 0x01 else HVACMode.OFF
             preset_mode = PRESET_AWAY if frame.payload[1] & 0x0F == 0x01 else PRESET_NONE
             target_temp = float(frame.payload[2])
             current_temp = float(frame.payload[4])
@@ -242,7 +242,7 @@ class KocomController:
                 "temp_step": self._device_storage.get(f"{key.unique_id}_thermo_step", 1.0),
             }
             state = {
-                "hvac_mode": havc_mode,
+                "hvac_mode": hvac_mode,
                 "preset_mode": preset_mode,
                 "target_temp": self._device_storage.get(f"{key.unique_id}_thermo_target", target_temp),
                 "current_temp": self._device_storage.get(f"{key.unique_id}_thermo_current", current_temp),
@@ -251,7 +251,7 @@ class KocomController:
                 LOGGER.debug("0.5°C step detected, heating supports 0.5 increments.")
                 self._device_storage[f"{key.unique_id}_thermo_step"] = 0.5
             if target_temp != 0 and current_temp != 0:
-                if havc_mode == HVACMode.HEAT and self._device_storage.get(f"{key.unique_id}_thermo_target") != target_temp:
+                if hvac_mode == HVACMode.HEAT and self._device_storage.get(f"{key.unique_id}_thermo_target") != target_temp:
                     LOGGER.debug(f"User target temperature update: {target_temp}")
                     self._device_storage[f"{key.unique_id}_thermo_target"] = target_temp
                 self._device_storage[f"{key.unique_id}_thermo_current"] = current_temp
@@ -294,7 +294,7 @@ class KocomController:
             )
             attribute = {
                 "extra_state": {
-                    "error_code": f"{error_code:02}"
+                    "error_code": f"{error_code:02x}"
                 },
                 "device_class": BinarySensorDeviceClass.PROBLEM
             }
@@ -312,9 +312,9 @@ class KocomController:
                 sub_type=SubType.NONE,
             )
             if frame.payload[0] == 0x10:
-                havc_mode = AIRCONDITIONER_HVAC_MAP.get(frame.payload[1], HVACMode.OFF) 
+                hvac_mode = AIRCONDITIONER_HVAC_MAP.get(frame.payload[1], HVACMode.OFF)
             else:
-                havc_mode = HVACMode.OFF
+                hvac_mode = HVACMode.OFF
             fan_mode = AIRCONDITIONER_FAN_MAP.get(frame.payload[2], FAN_LOW)
             current_temp = float(frame.payload[4])
             target_temp = float(frame.payload[5])
@@ -326,7 +326,7 @@ class KocomController:
                 "temp_step": 1.0,
             }
             state = {
-                "hvac_mode": havc_mode,
+                "hvac_mode": hvac_mode,
                 "fan_mode": fan_mode,
                 "current_temp": current_temp,
                 "target_temp": target_temp,
@@ -392,7 +392,7 @@ class KocomController:
             )
             attribute = {
                 "extra_state": {
-                    "error_code": f"{error_code:02}"
+                    "error_code": f"{error_code:02x}"
                 },
                 "device_class": BinarySensorDeviceClass.PROBLEM
             }
@@ -493,13 +493,13 @@ class KocomController:
                 SubType.TEMP: (SensorDeviceClass.TEMPERATURE, UnitOfTemperature.CELSIUS, frame.payload[6]),
                 SubType.HUMIDITY: (SensorDeviceClass.HUMIDITY, "%", frame.payload[7]),
             }
-            for key, value in data_mapping.items():
+            for sub_type, value in data_mapping.items():
                 device_class, native_unit, state = value
                 key = DeviceKey(
                     device_type=frame.dev_type,
                     room_index=frame.dev_room,
                     device_index=0,
-                    sub_type=key,
+                    sub_type=sub_type,
                 )
                 attribute = {
                     "device_class": device_class,
@@ -552,7 +552,7 @@ class KocomController:
         # 밸브는 동작이 느릴 수 있으니 기본 타임아웃 상향
         base_timeout = max(CMD_CONFIRM_TIMEOUT, 1.5)
         if action == "turn_on":
-            return True, base_timeout
+            return self._match_key_and(key, lambda d: bool(d.state) is True), base_timeout
         if action == "turn_off":
             return self._match_key_and(key, lambda d: bool(d.state) is False), base_timeout
         return self._match_key_and(key, lambda _d: False), base_timeout
