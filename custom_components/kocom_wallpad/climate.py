@@ -82,20 +82,20 @@ class KocomClimate(KocomBaseEntity, ClimateEntity):
         return self._device.attribute["hvac_modes"]
     
     @property
-    def fan_mode(self) -> str:
-        return self._device.state["fan_mode"]
-    
-    @property
-    def fan_modes(self) -> List[str]:
-        return self._device.attribute["fan_modes"]
+    def fan_mode(self) -> str | None:
+        return self._device.state.get("fan_mode")
 
     @property
-    def preset_mode(self) -> str:
-        return self._device.state["preset_mode"]
-    
+    def fan_modes(self) -> List[str] | None:
+        return self._device.attribute.get("fan_modes")
+
     @property
-    def preset_modes(self) -> List[str]:
-        return self._device.attribute["preset_modes"]
+    def preset_mode(self) -> str | None:
+        return self._device.state.get("preset_mode")
+
+    @property
+    def preset_modes(self) -> List[str] | None:
+        return self._device.attribute.get("preset_modes")
 
     @property
     def current_temperature(self) -> float:

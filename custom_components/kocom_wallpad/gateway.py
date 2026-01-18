@@ -32,7 +32,7 @@ class _CmdItem:
     key: DeviceKey
     action: str
     kwargs: dict
-    future: asyncio.Future = field(default_factory=asyncio.get_running_loop().create_future)
+    future: asyncio.Future = field(default=None)
 
 
 class _PendingWaiter:
@@ -157,7 +157,7 @@ class KocomGateway:
         try:
             LOGGER.debug("Starting read loop")
             while True:
-                if not self.conn._is_connected():
+                if not self.conn.is_connected:
                     await asyncio.sleep(5)
                     continue
                 chunk = await self.conn.recv(512, RECV_POLL_SEC)
@@ -169,7 +169,8 @@ class KocomGateway:
             raise
 
     async def async_send_action(self, key: DeviceKey, action: str, **kwargs) -> bool:
-        item = _CmdItem(key=key, action=action, kwargs=kwargs)
+        loop = asyncio.get_running_loop()
+        item = _CmdItem(key=key, action=action, kwargs=kwargs, future=loop.create_future())
         await self._tx_queue.put(item)
         try:
             res = await item.future   # 워커가 set_result(True/False)
@@ -318,7 +319,7 @@ class KocomGateway:
                             break
 
                     # 연결 확인
-                    if not self.conn._is_connected():
+                    if not self.conn.is_connected:
                         LOGGER.warning("Connection not ready. '%s' abort.", item.action)
                         break
 
