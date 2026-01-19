@@ -42,6 +42,14 @@ REV_AC_HVAC_MAP = {v: k for k, v in AIRCONDITIONER_HVAC_MAP.items()}
 REV_AC_FAN_MAP = {v: k for k, v in AIRCONDITIONER_FAN_MAP.items()}
 REV_VENT_PRESET_MAP = {v: k for k, v in VENTILATION_PRESET_MAP.items()}
 
+# Performance optimization: Reusable constants
+_HVAC_MODES_THERMOSTAT = [HVACMode.HEAT, HVACMode.OFF]
+_PRESET_MODES_THERMOSTAT = [PRESET_AWAY, PRESET_NONE]
+_TEMP_SENSOR_ATTRIBUTE = {
+    "device_class": SensorDeviceClass.TEMPERATURE,
+    "unit_of_measurement": UnitOfTemperature.CELSIUS
+}
+
 
 @dataclass(slots=True, frozen=True)
 class PacketFrame:
@@ -235,55 +243,61 @@ class KocomController:
             heat_temp = frame.payload[5]
             error_code = frame.payload[6]
 
+            # Optimize: Reuse key strings instead of creating multiple times
+            uid = key.unique_id
+            step_key = f"{uid}_thermo_step"
+            target_key = f"{uid}_thermo_target"
+            current_key = f"{uid}_thermo_current"
+
+            temp_step = self._device_storage.get(step_key, 1.0)
+            stored_target = self._device_storage.get(target_key, target_temp)
+            stored_current = self._device_storage.get(current_key, current_temp)
+
             attribute = {
-                "hvac_modes": [HVACMode.HEAT, HVACMode.OFF],
+                "hvac_modes": _HVAC_MODES_THERMOSTAT,
                 "feature_preset": True,
-                "preset_modes": [PRESET_AWAY, PRESET_NONE],
-                "temp_step": self._device_storage.get(f"{key.unique_id}_thermo_step", 1.0),
+                "preset_modes": _PRESET_MODES_THERMOSTAT,
+                "temp_step": temp_step,
             }
             state = {
                 "hvac_mode": hvac_mode,
                 "preset_mode": preset_mode,
-                "target_temp": self._device_storage.get(f"{key.unique_id}_thermo_target", target_temp),
-                "current_temp": self._device_storage.get(f"{key.unique_id}_thermo_current", current_temp),
+                "target_temp": stored_target,
+                "current_temp": stored_current,
             }
-            if target_temp % 1 == 0.5 and self._device_storage.get(f"{key.unique_id}_thermo_step") != 0.5:
+
+            # Update storage only if needed
+            if target_temp % 1 == 0.5 and temp_step != 0.5:
                 LOGGER.debug("0.5°C step detected, heating supports 0.5 increments.")
-                self._device_storage[f"{key.unique_id}_thermo_step"] = 0.5
+                self._device_storage[step_key] = 0.5
             if target_temp != 0 and current_temp != 0:
-                if hvac_mode == HVACMode.HEAT and self._device_storage.get(f"{key.unique_id}_thermo_target") != target_temp:
+                if hvac_mode == HVACMode.HEAT and stored_target != target_temp:
                     LOGGER.debug(f"User target temperature update: {target_temp}")
-                    self._device_storage[f"{key.unique_id}_thermo_target"] = target_temp
-                self._device_storage[f"{key.unique_id}_thermo_current"] = current_temp
+                    self._device_storage[target_key] = target_temp
+                self._device_storage[current_key] = current_temp
+
             dev = DeviceState(key=key, platform=Platform.CLIMATE, attribute=attribute, state=state)
             states.append(dev)
-            
-            key = DeviceKey(
-                device_type=frame.dev_type,
-                room_index=frame.dev_room,
-                device_index=0,
-                sub_type=SubType.HOTTEMP,
-            )
-            attribute = {
-                "device_class": SensorDeviceClass.TEMPERATURE,
-                "unit_of_measurement": UnitOfTemperature.CELSIUS
-            }
+
+            # Optimize: Reuse temperature sensor attribute and reduce object creation
             if hot_temp > 0:
-                dev = DeviceState(key=key, platform=Platform.SENSOR, attribute=attribute, state=hot_temp)
+                key = DeviceKey(
+                    device_type=frame.dev_type,
+                    room_index=frame.dev_room,
+                    device_index=0,
+                    sub_type=SubType.HOTTEMP,
+                )
+                dev = DeviceState(key=key, platform=Platform.SENSOR, attribute=_TEMP_SENSOR_ATTRIBUTE, state=hot_temp)
                 states.append(dev)
-            
-            key = DeviceKey(
-                device_type=frame.dev_type,
-                room_index=frame.dev_room,
-                device_index=0,
-                sub_type=SubType.HEATTEMP,
-            )
-            attribute = {
-                "device_class": SensorDeviceClass.TEMPERATURE,
-                "unit_of_measurement": UnitOfTemperature.CELSIUS
-            }
+
             if heat_temp > 0:
-                dev = DeviceState(key=key, platform=Platform.SENSOR, attribute=attribute, state=heat_temp)
+                key = DeviceKey(
+                    device_type=frame.dev_type,
+                    room_index=frame.dev_room,
+                    device_index=0,
+                    sub_type=SubType.HEATTEMP,
+                )
+                dev = DeviceState(key=key, platform=Platform.SENSOR, attribute=_TEMP_SENSOR_ATTRIBUTE, state=heat_temp)
                 states.append(dev)
             
             key = DeviceKey(

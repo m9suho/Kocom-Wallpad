@@ -39,47 +39,56 @@ class KocomBaseEntity(RestoreEntity):
         self._device = device
         self._unsubs: list[Callable] = []
 
+        # Performance optimization: Cache computed properties
+        self._cached_format_key = self._compute_format_key()
+        self._cached_format_identifiers = self._compute_format_identifiers()
+        self._cached_translation_placeholders = self._compute_translation_placeholders()
+
         self._attr_unique_id = f"{device.key.unique_id}:{self.gateway.host}"
         self.entity_description = ENTITY_DESCRIPTION_MAP[self._device.platform](
-            key=self.format_key,
+            key=self._cached_format_key,
             has_entity_name=True,
-            translation_key=self.format_key,
-            translation_placeholders={"id": self.format_translation_placeholders}
+            translation_key=self._cached_format_key,
+            translation_placeholders={"id": self._cached_translation_placeholders}
         )
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{self.format_identifiers}")},
+            identifiers={(DOMAIN, self._cached_format_identifiers)},
             manufacturer="KOCOM Co., Ltd",
             model="Smart Wallpad",
-            name=f"{self.format_identifiers}",
+            name=self._cached_format_identifiers,
             via_device=(DOMAIN, str(self.gateway.host)),
         )
         
-    @property
-    def format_key(self) -> str:
+    def _compute_format_key(self) -> str:
+        """Compute format key once during initialization."""
         if self._device.key.sub_type == SubType.NONE:
             return self._device.key.device_type.name.lower()
-        else:
-            return f"{self._device.key.device_type.name.lower()}-{self._device.key.sub_type.name.lower()}"
+        return f"{self._device.key.device_type.name.lower()}-{self._device.key.sub_type.name.lower()}"
+
+    def _compute_translation_placeholders(self) -> str:
+        """Compute translation placeholders once during initialization."""
+        return f"{self._device.key.room_index}-{self._device.key.device_index}"
+
+    def _compute_format_identifiers(self) -> str:
+        """Compute format identifiers once during initialization."""
+        device_type = self._device.key.device_type
+        if device_type in {DeviceType.VENTILATION, DeviceType.GASVALVE, DeviceType.ELEVATOR, DeviceType.MOTION}:
+            return "KOCOM"
+        elif device_type in {DeviceType.LIGHT, DeviceType.LIGHTCUTOFF, DeviceType.DIMMINGLIGHT}:
+            return "KOCOM LIGHT"
+        return f"KOCOM {device_type.name}"
+
+    @property
+    def format_key(self) -> str:
+        return self._cached_format_key
 
     @property
     def format_translation_placeholders(self) -> str:
-        if self._device.key.sub_type == SubType.NONE:
-            return f"{str(self._device.key.room_index)}-{str(self._device.key.device_index)}"
-        else:
-            return f"{str(self._device.key.room_index)}-{str(self._device.key.device_index)}"
+        return self._cached_translation_placeholders
 
     @property
     def format_identifiers(self) -> str:
-        if self._device.key.device_type in {
-            DeviceType.VENTILATION, DeviceType.GASVALVE, DeviceType.ELEVATOR, DeviceType.MOTION
-        }:
-            return f"KOCOM"
-        elif self._device.key.device_type in {
-            DeviceType.LIGHT, DeviceType.LIGHTCUTOFF, DeviceType.DIMMINGLIGHT
-        }:
-            return f"KOCOM LIGHT"
-        else:
-            return f"KOCOM {self._device.key.device_type.name}"
+        return self._cached_format_identifiers
 
     async def async_added_to_hass(self):
         sig = self.gateway.async_signal_device_updated(self._device.key.unique_id)
