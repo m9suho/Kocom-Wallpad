@@ -1,104 +1,104 @@
-# Release v2.0.7 - Performance Optimization
+# 릴리즈 v2.0.7 - 성능 최적화
 
-## ⚡ Performance Improvements
+## ⚡ 성능 개선
 
-### Overview
-This release focuses on optimizing performance and reducing memory allocations throughout the codebase. Significant improvements have been made to packet processing, entity initialization, and asynchronous operations.
+### 개요
+이 릴리즈는 코드베이스 전반의 성능 최적화 및 메모리 할당 감소에 중점을 둡니다. 패킷 처리, 엔티티 초기화, 비동기 작업에 상당한 개선이 이루어졌습니다.
 
-### controller.py Optimizations
-- **Added reusable module-level constants**
-  - `_HVAC_MODES_THERMOSTAT`: Eliminates repeated list creation
-  - `_PRESET_MODES_THERMOSTAT`: Shared across all thermostat devices
-  - `_TEMP_SENSOR_ATTRIBUTE`: Reusable temperature sensor attributes
+### controller.py 최적화
+- **재사용 가능한 모듈 레벨 상수 추가**
+  - `_HVAC_MODES_THERMOSTAT`: 반복적인 리스트 생성 제거
+  - `_PRESET_MODES_THERMOSTAT`: 모든 온도조절기 장치에서 공유
+  - `_TEMP_SENSOR_ATTRIBUTE`: 재사용 가능한 온도 센서 속성
 
-- **Optimized storage key generation**
-  - Cache f-string keys (`f"{uid}_thermo_step"`) in local variables
-  - Reduced from 7+ f-string creations to 3 per thermostat packet
-  - Minimize dictionary lookup overhead by reusing retrieved values
+- **스토리지 키 생성 최적화**
+  - f-string 키(`f"{uid}_thermo_step"`)를 로컬 변수에 캐싱
+  - 온도조절기 패킷당 7개 이상의 f-string 생성을 3개로 감소
+  - 조회한 값을 재사용하여 딕셔너리 조회 오버헤드 최소화
 
-- **Reduced redundant operations**
-  - Eliminated duplicate `dict.get()` calls
-  - Pre-compute and reuse values within handler scope
+- **중복 작업 감소**
+  - 중복된 `dict.get()` 호출 제거
+  - 핸들러 범위 내에서 값을 사전 계산하고 재사용
 
-**Impact**: ~30% reduction in memory allocations per packet processed
+**효과**: 패킷당 메모리 할당 약 30% 감소
 
-### gateway.py Optimizations
-- **Single-pass pending notification**
-  - Rewrote `_notify_pendings()` to filter list in one iteration
-  - Eliminated redundant `list.remove()` calls within loop
-  - Pre-compute `dev.key.key` for faster comparisons
+### gateway.py 최적화
+- **단일 패스 pending 알림**
+  - `_notify_pendings()`를 한 번의 반복으로 리스트 필터링하도록 재작성
+  - 루프 내 중복 `list.remove()` 호출 제거
+  - 더 빠른 비교를 위해 `dev.key.key` 사전 계산
 
-- **Improved asynchronous efficiency**
-  - Reduced list manipulation overhead
-  - Better memory usage during high-traffic scenarios
+- **비동기 효율성 개선**
+  - 리스트 조작 오버헤드 감소
+  - 높은 트래픽 시나리오에서 더 나은 메모리 사용
 
-**Impact**: Faster command confirmation, reduced GC pressure
+**효과**: 명령 확인 속도 향상, GC 부하 감소
 
-### entity_base.py Optimizations
-- **Property caching**
-  - Cache `format_key`, `format_identifiers`, `translation_placeholders`
-  - Compute formatting strings once during `__init__`
-  - Convert expensive property calculations to O(1) cached lookups
+### entity_base.py 최적화
+- **프로퍼티 캐싱**
+  - `format_key`, `format_identifiers`, `translation_placeholders` 캐싱
+  - `__init__` 시점에 포맷 문자열을 한 번만 계산
+  - 비용이 높은 프로퍼티 계산을 O(1) 캐시 조회로 변환
 
-- **Memory efficiency**
-  - No repeated string operations per property access
-  - Reduced entity initialization overhead
+- **메모리 효율성**
+  - 프로퍼티 접근 시 반복적인 문자열 연산 제거
+  - 엔티티 초기화 오버헤드 감소
 
-**Impact**: Faster entity creation, lower CPU usage for entity operations
+**효과**: 엔티티 생성 속도 향상, 엔티티 작업의 CPU 사용량 감소
 
-## 📊 Expected Performance Gains
+## 📊 예상 성능 향상
 
-| Metric | Improvement |
-|--------|-------------|
-| Packet processing memory | ~30% reduction |
-| Entity initialization time | ~15-20% faster |
-| CPU usage (high traffic) | ~10-15% reduction |
-| GC collections | Fewer collections, smaller pauses |
+| 메트릭 | 개선율 |
+|--------|--------|
+| 패킷 처리 메모리 | 약 30% 감소 |
+| 엔티티 초기화 시간 | 약 15-20% 빠름 |
+| CPU 사용률 (높은 트래픽) | 약 10-15% 감소 |
+| GC 수집 | 수집 횟수 감소, 중단 시간 단축 |
 
-## 🔧 Technical Details
+## 🔧 기술적 세부사항
 
-### Memory Allocation Reduction
-- Before: New lists/dicts created for every packet/entity
-- After: Shared constants and cached computations
+### 메모리 할당 감소
+- 이전: 모든 패킷/엔티티마다 새로운 리스트/딕셔너리 생성
+- 이후: 공유 상수 및 캐시된 계산 사용
 
-### CPU Optimization
-- Before: Multiple f-string generations + dict lookups per packet
-- After: Minimal string operations, reused variables
+### CPU 최적화
+- 이전: 패킷당 여러 f-string 생성 + 딕셔너리 조회
+- 이후: 최소한의 문자열 연산, 변수 재사용
 
-### Code Quality
-- Maintains backward compatibility
-- No API changes
-- Improved code clarity with better variable names
+### 코드 품질
+- 하위 호환성 유지
+- API 변경 없음
+- 더 나은 변수명으로 코드 명확성 개선
 
-## 🔄 Upgrade Notes
+## 🔄 업그레이드 안내
 
-This is a **drop-in replacement** for v2.0.6. No configuration changes required.
+v2.0.6의 **즉시 교체 가능** 버전입니다. 설정 변경이 필요하지 않습니다.
 
-### Benefits
-- ✅ Better performance on Raspberry Pi and low-power devices
-- ✅ Handles higher packet rates more efficiently
-- ✅ Reduced memory footprint
-- ✅ Smoother operation under load
+### 장점
+- ✅ 라즈베리 파이 및 저전력 장치에서 더 나은 성능
+- ✅ 더 높은 패킷 전송률을 더 효율적으로 처리
+- ✅ 메모리 사용량 감소
+- ✅ 부하 상황에서 더 부드러운 작동
 
-### Compatibility
-- Fully backward compatible with v2.0.6
-- No breaking changes
-- All existing functionality preserved
+### 호환성
+- v2.0.6과 완전히 하위 호환
+- 호환성을 깨는 변경 없음
+- 모든 기존 기능 유지
 
-## 📝 Changed Files
+## 📝 변경된 파일
 - `custom_components/kocom_wallpad/controller.py`
 - `custom_components/kocom_wallpad/gateway.py`
 - `custom_components/kocom_wallpad/entity_base.py`
 - `custom_components/kocom_wallpad/manifest.json`
 
-## 🔗 Links
-- **Previous Version**: v2.0.6 (Bug Fixes)
-- **Full Changelog**: v2.0.6...v2.0.7
+## 🔗 링크
+- **이전 버전**: v2.0.6 (버그 수정)
+- **전체 변경사항**: v2.0.6...v2.0.7
 
 ---
 
-**Recommendation**: Upgrade recommended for all users, especially those with:
-- Multiple devices (10+ entities)
-- High packet traffic
-- Low-power hardware (Raspberry Pi 3 or older)
-- Performance-sensitive installations
+**권장사항**: 다음 상황의 모든 사용자에게 업그레이드 권장:
+- 여러 장치 (10개 이상의 엔티티)
+- 높은 패킷 트래픽
+- 저전력 하드웨어 (라즈베리 파이 3 이하)
+- 성능에 민감한 설치 환경
