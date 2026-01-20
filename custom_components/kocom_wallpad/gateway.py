@@ -250,22 +250,25 @@ class KocomGateway:
     def _notify_pendings(self, dev: DeviceState) -> None:
         if not self._pendings:
             return
-        hit: list[_PendingWaiter] = []
+
+        # Optimize: Remove matched pendings in single pass
+        dev_key = dev.key.key
+        remaining = []
         for p in self._pendings:
+            matched = False
             try:
-                if p.key.key == dev.key.key and p.predicate(dev):
-                    hit.append(p)
+                if p.key.key == dev_key and p.predicate(dev):
+                    if not p.future.done():
+                        p.future.set_result(dev)
+                    matched = True
             except Exception:
-                # predicate 내부 오류 방어
-                continue
-        if hit:
-            for p in hit:
-                if not p.future.done():
-                    p.future.set_result(dev)
-                try:
-                    self._pendings.remove(p)
-                except ValueError:
-                    pass
+                # predicate 내부 오류 방어 - keep in list
+                pass
+
+            if not matched:
+                remaining.append(p)
+
+        self._pendings = remaining
 
     async def _wait_for_confirmation(
         self,
