@@ -192,16 +192,26 @@ class KocomController:
             self.gateway.on_device_state(dev_state)
             
     def _handle_cutoff_switch(self, frame: PacketFrame) -> DeviceState:
-        if frame.command in (0x65, 0x66):
-            key = DeviceKey(
-                device_type=frame.dev_type,
-                room_index=0,
-                device_index=0,
-                sub_type=SubType.NONE,
-            )
+        key = DeviceKey(
+            device_type=frame.dev_type,
+            room_index=0,
+            device_index=0,
+            sub_type=SubType.NONE,
+        )
+
+        # Handle both status update (0x00) and direct commands (0x65, 0x66)
+        if frame.command == 0x00:
+            # Status update: payload[0] == 0xFF means ON
+            state = frame.payload[0] == 0xFF
+        elif frame.command in (0x65, 0x66):
+            # Direct command: 0x65 = ON, 0x66 = OFF
             state = frame.command == 0x65
-            dev = DeviceState(key=key, platform=Platform.LIGHT, attribute={}, state=state)
-            return dev
+        else:
+            return None
+
+        dev = DeviceState(key=key, platform=Platform.LIGHT, attribute={}, state=state)
+        dev._is_register = True  # Always register cutoff switch
+        return dev
 
     def _handle_switch(self, frame: PacketFrame) -> List[DeviceState]:
         states: List[DeviceState] = []
@@ -639,7 +649,13 @@ class KocomController:
         data = bytearray(8)
 
         if device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
-            data = self._generate_switch(key, action, data)
+            # Check if this is a cutoff switch (room_index == 0)
+            if device_type == DeviceType.LIGHT and room_index == 0:
+                # Cutoff switch: use room 0xFF
+                dest_room = bytes([0xFF])
+                data[0] = 0xFF if action == "turn_on" else 0x00
+            else:
+                data = self._generate_switch(key, action, data)
         elif device_type == DeviceType.VENTILATION:
             data = self._generate_ventilation(action, data, **kwargs)
         elif device_type == DeviceType.THERMOSTAT:
