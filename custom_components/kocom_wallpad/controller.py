@@ -651,9 +651,14 @@ class KocomController:
         if device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
             # Check if this is a cutoff switch (room_index == 0)
             if device_type == DeviceType.LIGHT and room_index == 0:
-                # Cutoff switch: use room 0xFF
+                # Cutoff switch: use room 0xFF and special commands
                 dest_room = bytes([0xFF])
-                data[0] = 0xFF if action == "turn_on" else 0x00
+                if action == "turn_on":
+                    command = bytes([0x65])  # Turn on command
+                    data = bytearray([0x00] * 8)  # All 0x00
+                else:
+                    command = bytes([0x66])  # Turn off command
+                    data = bytearray([0xFF] * 8)  # All 0xFF
             else:
                 data = self._generate_switch(key, action, data)
         elif device_type == DeviceType.VENTILATION:
