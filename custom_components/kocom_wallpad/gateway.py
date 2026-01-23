@@ -183,12 +183,27 @@ class KocomGateway:
 
     def on_device_state(self, dev: DeviceState) -> None:
         allow_insert = True
-        if dev.key.device_type in (DeviceType.LIGHT, DeviceType.OUTLET, DeviceType.LIGHTCUTOFF):
+        if dev.key.device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
             allow_insert = bool(getattr(dev, "_is_register", True))
             if getattr(self, "_force_register_uid", None) == dev.key.unique_id:
                 allow_insert = True
+            LOGGER.debug("Device type=%s, _is_register=%s, allow_insert=%s",
+                        dev.key.device_type, getattr(dev, "_is_register", None), allow_insert)
+        elif dev.key.device_type == DeviceType.LIGHTCUTOFF:
+            # Cutoff switch should always be registered
+            allow_insert = True
+            # Check if already exists but not registered to Home Assistant
+            old_dev = self.registry.get(dev.key)
+            if old_dev is not None:
+                # Force re-registration by removing and re-adding
+                LOGGER.info("Cutoff switch already in registry, forcing re-registration")
+                self.registry._states.pop(dev.key.key, None)
+                self.registry.by_platform.get(Platform.LIGHT, {}).pop(dev.key.unique_id, None)
+            LOGGER.debug("Cutoff switch: force allow_insert=True")
 
         is_new, changed = self.registry.upsert(dev, allow_insert=allow_insert)
+        LOGGER.debug("Registry upsert result: is_new=%s, changed=%s, key=%s",
+                    is_new, changed, dev.key)
         if is_new:
             LOGGER.info("New device has been detected. Register -> %s", dev.key)
             async_dispatcher_send(
