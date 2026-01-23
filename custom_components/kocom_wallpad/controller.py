@@ -637,13 +637,8 @@ class KocomController:
         device_index = key.device_index
         sub_type = key.sub_type
 
-        if device_type not in REV_DT_MAP:
-            raise ValueError(f"Invalid device type: {device_type}")
-
         type_bytes = bytes([0x30, 0xBC])
         padding = bytes([0x00])
-        dest_dev = bytes([REV_DT_MAP[device_type]])
-        dest_room = bytes([room_index & 0xFF])
         src_dev = bytes([0x01])
         src_room = bytes([0x00])
         command = bytes([0x00])
@@ -660,14 +655,34 @@ class KocomController:
                 command = bytes([0x66])  # Turn off command
                 data = bytearray([0xFF] * 8)  # All 0xFF
         elif device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
+            if device_type not in REV_DT_MAP:
+                raise ValueError(f"Invalid device type: {device_type}")
+            dest_dev = bytes([REV_DT_MAP[device_type]])
+            dest_room = bytes([room_index & 0xFF])
             data = self._generate_switch(key, action, data)
         elif device_type == DeviceType.VENTILATION:
+            if device_type not in REV_DT_MAP:
+                raise ValueError(f"Invalid device type: {device_type}")
+            dest_dev = bytes([REV_DT_MAP[device_type]])
+            dest_room = bytes([room_index & 0xFF])
             data = self._generate_ventilation(action, data, **kwargs)
         elif device_type == DeviceType.THERMOSTAT:
+            if device_type not in REV_DT_MAP:
+                raise ValueError(f"Invalid device type: {device_type}")
+            dest_dev = bytes([REV_DT_MAP[device_type]])
+            dest_room = bytes([room_index & 0xFF])
             data = self._generate_thermostat(action, data, **kwargs)
         elif device_type == DeviceType.AIRCONDITIONER:
+            if device_type not in REV_DT_MAP:
+                raise ValueError(f"Invalid device type: {device_type}")
+            dest_dev = bytes([REV_DT_MAP[device_type]])
+            dest_room = bytes([room_index & 0xFF])
             data = self._generate_airconditioner(action, data, **kwargs)
         elif device_type == DeviceType.GASVALVE:
+            if device_type not in REV_DT_MAP:
+                raise ValueError(f"Invalid device type: {device_type}")
+            dest_dev = bytes([REV_DT_MAP[device_type]])
+            dest_room = bytes([room_index & 0xFF])
             command = bytes([0x02])
         elif device_type == DeviceType.ELEVATOR:
             dest_dev = bytes([0x01])
