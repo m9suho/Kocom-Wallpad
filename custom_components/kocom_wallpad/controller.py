@@ -192,8 +192,9 @@ class KocomController:
             self.gateway.on_device_state(dev_state)
             
     def _handle_cutoff_switch(self, frame: PacketFrame) -> DeviceState:
+        # Use LIGHTCUTOFF type to distinguish from regular lights in room 0
         key = DeviceKey(
-            device_type=frame.dev_type,
+            device_type=DeviceType.LIGHTCUTOFF,
             room_index=0,
             device_index=0,
             sub_type=SubType.NONE,
@@ -648,19 +649,18 @@ class KocomController:
         command = bytes([0x00])
         data = bytearray(8)
 
-        if device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
-            # Check if this is a cutoff switch (room_index == 0)
-            if device_type == DeviceType.LIGHT and room_index == 0:
-                # Cutoff switch: use room 0xFF and special commands
-                dest_room = bytes([0xFF])
-                if action == "turn_on":
-                    command = bytes([0x65])  # Turn on command
-                    data = bytearray([0x00] * 8)  # All 0x00
-                else:
-                    command = bytes([0x66])  # Turn off command
-                    data = bytearray([0xFF] * 8)  # All 0xFF
+        if device_type == DeviceType.LIGHTCUTOFF:
+            # Light cutoff switch: use room 0xFF and special commands
+            dest_dev = bytes([0x0E])  # Light device type
+            dest_room = bytes([0xFF])  # Cutoff special room
+            if action == "turn_on":
+                command = bytes([0x65])  # Turn on command
+                data = bytearray([0x00] * 8)  # All 0x00
             else:
-                data = self._generate_switch(key, action, data)
+                command = bytes([0x66])  # Turn off command
+                data = bytearray([0xFF] * 8)  # All 0xFF
+        elif device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
+            data = self._generate_switch(key, action, data)
         elif device_type == DeviceType.VENTILATION:
             data = self._generate_ventilation(action, data, **kwargs)
         elif device_type == DeviceType.THERMOSTAT:
