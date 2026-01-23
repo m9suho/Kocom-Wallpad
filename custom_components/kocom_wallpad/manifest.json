@@ -2,7 +2,7 @@
     "domain": "kocom_wallpad",
     "name": "Kocom Wallpad",
     "codeowners": [
-        "@lunDreame"
+        "@m9suho"
     ],
     "config_flow": true,
     "documentation": "https://github.com/lunDreame/kocom-wallpad",
