@@ -17,84 +17,76 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0  # Get full history
 
-      - name: Check if version changed
-        id: version-check
+      - name: Extract version from manifest.json
+        id: get-version
         run: |
-          # Get current version from manifest.json
-          CURRENT_VERSION=$(jq -r '.version' custom_components/kocom_wallpad/manifest.json)
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(grep -oP '"version"\s*:\s*"\K[^"]+' custom_components/kocom_wallpad/manifest.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Current version: $VERSION"
 
-          # Get previous version
-          git checkout HEAD~1 -- custom_components/kocom_wallpad/manifest.json 2>/dev/null || true
-          if [ -f custom_components/kocom_wallpad/manifest.json ]; then
-            PREVIOUS_VERSION=$(jq -r '.version' custom_components/kocom_wallpad/manifest.json)
+      - name: Check if tag already exists
+        id: check-tag
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Tag v${VERSION} already exists"
           else
-            PREVIOUS_VERSION=""
-          fi
-
-          # Restore current version
-          git checkout HEAD -- custom_components/kocom_wallpad/manifest.json
-
-          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
-
-          # Check if version changed
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "Version not changed"
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Tag v${VERSION} does not exist yet"
           fi
 
       - name: Check if release notes exist
         id: check-notes
-        if: steps.version-check.outputs.changed == 'true'
+        if: steps.check-tag.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.version-check.outputs.current_version }}"
+          VERSION="${{ steps.get-version.outputs.version }}"
           NOTES_FILE="RELEASE_NOTES_v${VERSION}.md"
-
+          
           if [ -f "$NOTES_FILE" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "notes_file=$NOTES_FILE" >> $GITHUB_OUTPUT
-            echo "Release notes found: $NOTES_FILE"
+            echo "✅ Release notes found: $NOTES_FILE"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Release notes not found: $NOTES_FILE"
+            echo "⚠️ Release notes not found: $NOTES_FILE"
           fi
 
       - name: Create Git tag
-        if: steps.version-check.outputs.changed == 'true'
+        if: steps.check-tag.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.version-check.outputs.current_version }}"
+          VERSION="${{ steps.get-version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${VERSION}" -m "Release v${VERSION}"
           git push origin "v${VERSION}"
+          echo "✅ Created and pushed tag: v${VERSION}"
 
-      - name: Create Release
-        if: steps.version-check.outputs.changed == 'true' && steps.check-notes.outputs.exists == 'true'
-        uses: softprops/action-gh-release@v1
+      - name: Create Release with notes
+        if: steps.check-tag.outputs.exists == 'false' && steps.check-notes.outputs.exists == 'true'
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version-check.outputs.current_version }}
-          name: Release v${{ steps.version-check.outputs.current_version }}
+          tag_name: v${{ steps.get-version.outputs.version }}
+          name: Release v${{ steps.get-version.outputs.version }}
           body_path: ${{ steps.check-notes.outputs.notes_file }}
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Release (without notes)
-        if: steps.version-check.outputs.changed == 'true' && steps.check-notes.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
+      - name: Create Release without notes
+        if: steps.check-tag.outputs.exists == 'false' && steps.check-notes.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version-check.outputs.current_version }}
-          name: Release v${{ steps.version-check.outputs.current_version }}
+          tag_name: v${{ steps.get-version.outputs.version }}
+          name: Release v${{ steps.get-version.outputs.version }}
           body: |
-            Release v${{ steps.version-check.outputs.current_version }}
-
-            릴리즈 노트를 찾을 수 없습니다.
+            ## Release v${{ steps.get-version.outputs.version }}
+            
+            릴리즈 노트 파일이 없습니다.
+            `RELEASE_NOTES_v${{ steps.get-version.outputs.version }}.md` 파일을 추가해주세요.
           draft: false
           prerelease: false
         env:
