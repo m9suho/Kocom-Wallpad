@@ -181,9 +181,9 @@ class KocomGateway:
                 item.future.set_result(False)
             raise
 
-    def on_device_state(self, dev: DeviceState) -> None:  
+    def on_device_state(self, dev: DeviceState) -> None:
         allow_insert = True
-        if dev.key.device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
+        if dev.key.device_type in (DeviceType.LIGHT, DeviceType.OUTLET, DeviceType.LIGHTCUTOFF):
             allow_insert = bool(getattr(dev, "_is_register", True))
             if getattr(self, "_force_register_uid", None) == dev.key.unique_id:
                 allow_insert = True
