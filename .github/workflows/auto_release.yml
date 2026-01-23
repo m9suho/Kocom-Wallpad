@@ -1,4 +1,4 @@
-name: Create Release from manifest.json
+name: Auto Release
 
 on:
   push:
@@ -8,85 +8,71 @@ on:
       - 'custom_components/kocom_wallpad/manifest.json'
 
 jobs:
-  create-release:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Get full history
+          fetch-depth: 0
 
-      - name: Extract version from manifest.json
-        id: get-version
+      - name: Get version
+        id: version
         run: |
           VERSION=$(grep -oP '"version"\s*:\s*"\K[^"]+' custom_components/kocom_wallpad/manifest.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Current version: $VERSION"
+          echo "🔖 Version: $VERSION"
 
-      - name: Check if tag already exists
-        id: check-tag
+      - name: Check if tag exists
+        id: tag
         run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
-          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
+          VERSION="${{ steps.version.outputs.version }}"
+          if git ls-remote --tags origin | grep -q "refs/tags/v${VERSION}$"; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Tag v${VERSION} already exists"
+            echo "⚠️  Tag v${VERSION} already exists - skipping"
+            exit 0
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "✅ Tag v${VERSION} does not exist yet"
+            echo "✅ Tag v${VERSION} does not exist - will create"
           fi
 
-      - name: Check if release notes exist
-        id: check-notes
-        if: steps.check-tag.outputs.exists == 'false'
+      - name: Check release notes
+        id: notes
+        if: steps.tag.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
           NOTES_FILE="RELEASE_NOTES_v${VERSION}.md"
           
           if [ -f "$NOTES_FILE" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "notes_file=$NOTES_FILE" >> $GITHUB_OUTPUT
-            echo "✅ Release notes found: $NOTES_FILE"
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "file=$NOTES_FILE" >> $GITHUB_OUTPUT
+            echo "✅ Found: $NOTES_FILE"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Release notes not found: $NOTES_FILE"
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Not found: $NOTES_FILE"
           fi
 
-      - name: Create Git tag
-        if: steps.check-tag.outputs.exists == 'false'
+      - name: Create tag
+        if: steps.tag.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${VERSION}" -m "Release v${VERSION}"
           git push origin "v${VERSION}"
-          echo "✅ Created and pushed tag: v${VERSION}"
+          echo "✅ Created tag: v${VERSION}"
 
-      - name: Create Release with notes
-        if: steps.check-tag.outputs.exists == 'false' && steps.check-notes.outputs.exists == 'true'
+      - name: Create release
+        if: steps.tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get-version.outputs.version }}
-          name: Release v${{ steps.get-version.outputs.version }}
-          body_path: ${{ steps.check-notes.outputs.notes_file }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Release without notes
-        if: steps.check-tag.outputs.exists == 'false' && steps.check-notes.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.get-version.outputs.version }}
-          name: Release v${{ steps.get-version.outputs.version }}
-          body: |
-            ## Release v${{ steps.get-version.outputs.version }}
-            
-            릴리즈 노트 파일이 없습니다.
-            `RELEASE_NOTES_v${{ steps.get-version.outputs.version }}.md` 파일을 추가해주세요.
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body_path: ${{ steps.notes.outputs.found == 'true' && steps.notes.outputs.file || '' }}
+          body: ${{ steps.notes.outputs.found == 'false' && format('## Release v{0}\n\n릴리즈 노트가 없습니다.', steps.version.outputs.version) || '' }}
           draft: false
           prerelease: false
         env:
