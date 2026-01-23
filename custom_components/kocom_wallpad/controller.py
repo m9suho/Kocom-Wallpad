@@ -156,7 +156,10 @@ class KocomController:
 
         dev_state = None
         if frame.dev_type == DeviceType.LIGHT:
+            LOGGER.debug("Light packet received: room=%s, command=%s, payload=%s",
+                        hex(frame.dev_room), hex(frame.command), frame.payload.hex())
             if frame.dev_room == 0xFF:
+                LOGGER.debug("Cutoff switch detected")
                 dev_state = self._handle_cutoff_switch(frame)
             else:
                 dev_state = self._handle_switch(frame)
