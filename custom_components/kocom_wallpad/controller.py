@@ -657,6 +657,8 @@ class KocomController:
             else:
                 command = bytes([0x66])  # Turn off command
                 data = bytearray([0xFF] * 8)  # All 0xFF
+            LOGGER.debug("LIGHTCUTOFF command: action=%s, command=%s, data=%s",
+                        action, command.hex(), data.hex())
         elif device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
             if device_type not in REV_DT_MAP:
                 raise ValueError(f"Invalid device type: {device_type}")
@@ -699,6 +701,9 @@ class KocomController:
         body = b"".join([type_bytes, padding, dest_dev, dest_room, src_dev, src_room, command, bytes(data)])
         checksum = bytes([self._checksum(body)])
         packet = bytes([0xAA, 0x55]) + body + checksum + bytes([0x0D, 0x0D])
+
+        if device_type == DeviceType.LIGHTCUTOFF:
+            LOGGER.debug("LIGHTCUTOFF packet generated: %s", packet.hex())
 
         expect, timeout = self.build_expectation(key, action, **kwargs)
         return packet, expect, timeout

@@ -183,12 +183,20 @@ class KocomGateway:
 
     def on_device_state(self, dev: DeviceState) -> None:
         allow_insert = True
-        if dev.key.device_type in (DeviceType.LIGHT, DeviceType.OUTLET, DeviceType.LIGHTCUTOFF):
+        if dev.key.device_type in (DeviceType.LIGHT, DeviceType.OUTLET):
             allow_insert = bool(getattr(dev, "_is_register", True))
             if getattr(self, "_force_register_uid", None) == dev.key.unique_id:
                 allow_insert = True
+            LOGGER.debug("Device type=%s, _is_register=%s, allow_insert=%s",
+                        dev.key.device_type, getattr(dev, "_is_register", None), allow_insert)
+        elif dev.key.device_type == DeviceType.LIGHTCUTOFF:
+            # Cutoff switch should always be registered
+            allow_insert = True
+            LOGGER.debug("Cutoff switch: force allow_insert=True")
 
         is_new, changed = self.registry.upsert(dev, allow_insert=allow_insert)
+        LOGGER.debug("Registry upsert result: is_new=%s, changed=%s, key=%s",
+                    is_new, changed, dev.key)
         if is_new:
             LOGGER.info("New device has been detected. Register -> %s", dev.key)
             async_dispatcher_send(
