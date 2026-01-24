@@ -44,8 +44,8 @@ jobs:
         if: steps.tag.outputs.exists == 'false'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          NOTES_FILE="RELEASE_NOTES_v${VERSION}.md"
-          
+          NOTES_FILE="release_notes/v${VERSION}.md"
+
           if [ -f "$NOTES_FILE" ]; then
             echo "found=true" >> $GITHUB_OUTPUT
             echo "file=$NOTES_FILE" >> $GITHUB_OUTPUT
