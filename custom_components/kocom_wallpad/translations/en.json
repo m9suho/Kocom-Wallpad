@@ -27,9 +27,6 @@
             },
             "dimminglight": {
                 "name": "Dimming Light {id}"
-            },
-            "lightcutoff": {
-                "name": "Light Cut-off {id}"
             }
         },
         "switch": {
@@ -46,9 +43,6 @@
         "climate": {
             "thermostat": {
                 "name": "Thermostat {id}"
-            },
-            "airconditioner": {
-                "name": "Air Conditioner {id}"
             }
         },
         "fan": {

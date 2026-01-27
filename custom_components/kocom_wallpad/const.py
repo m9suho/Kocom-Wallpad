@@ -12,7 +12,6 @@ DOMAIN = "kocom_wallpad"
 PLATFORMS = [
     Platform.LIGHT,
     Platform.SWITCH,
-    Platform.CLIMATE,
     Platform.FAN,
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
@@ -33,11 +32,9 @@ class DeviceType(IntEnum):
     """Device types."""
     UNKNOWN = 0
     LIGHT = 1
-    LIGHTCUTOFF = 2
     DIMMINGLIGHT = 3
     OUTLET = 4
     THERMOSTAT = 5
-    AIRCONDITIONER = 6
     VENTILATION = 7
     GASVALVE = 8
     ELEVATOR = 9
