@@ -189,10 +189,6 @@ class KocomGateway:
                 allow_insert = True
             LOGGER.debug("Device type=%s, _is_register=%s, allow_insert=%s",
                         dev.key.device_type, getattr(dev, "_is_register", None), allow_insert)
-        elif dev.key.device_type == DeviceType.LIGHTCUTOFF:
-            # Cutoff switch should always be registered
-            allow_insert = True
-            LOGGER.debug("Cutoff switch: force allow_insert=True")
 
         is_new, changed = self.registry.upsert(dev, allow_insert=allow_insert)
         LOGGER.debug("Registry upsert result: is_new=%s, changed=%s, key=%s",

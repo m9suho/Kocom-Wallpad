@@ -27,9 +27,6 @@
             },
             "dimminglight": {
                 "name": "디밍 조명 {id}"
-            },
-            "lightcutoff": {
-                "name": "일괄소등 {id}"
             }
         },
         "switch": {
@@ -46,9 +43,6 @@
         "climate": {
             "thermostat": {
                 "name": "난방 {id}"
-            },
-            "airconditioner": {
-                "name": "에어컨 {id}"
             }
         },
         "fan": {
